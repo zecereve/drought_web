@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TWSA Kuraklık İzleme Haritası</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #map { height: 100%; width: 100%; z-index: 1; }
+        
+        /* Kalıcı Havza İsimleri İçin CSS */
+        .basin-label {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: rgba(255, 255, 255, 0.95) !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9), -1px -1px 4px rgba(0,0,0,0.9);
+            text-align: center;
+        }
+
+        /* Popup Özelleştirme */
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Leaflet Karanlık Tema Ayarları */
+        .leaflet-container {
+            background: #0f172a; /* bg-slate-900 */
+        }
+        
+        /* Info (Bilgi) Kutusu CSS */
+        .info-box {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            border-radius: 0.75rem;
+            color: #f8fafc;
+            padding: 1rem;
+            z-index: 1000;
+        }
+
+        /* Lejand CSS (Modern Gradient) */
+        .legend {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 0.75rem;
+            color: #f8fafc;
+            padding: 0.75rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .gradient-bar {
+            width: 16px;
+            height: 120px;
+            background: linear-gradient(to bottom, #075985, #0284c7, #38bdf8, #f1f5f9, #f97316, #dc2626, #991b1b);
+            border-radius: 8px;
+            position: relative;
+            margin: 8px 0;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .gradient-tick {
+            position: absolute;
+            left: 24px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+        }
+        .gradient-tick::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            width: 22px;
+            height: 6px;
+            border: 1.5px solid white;
+            border-radius: 3px;
+            background: transparent;
+            z-index: 10;
+        }
+        .tick-top { top: -1px; }
+        .tick-top::before { border-color: #f8fafc; }
+        .tick-bottom { bottom: -1px; }
+        .tick-bottom::before { border-color: #f8fafc; }
+        
+        /* Range Slider Özelleştirmesi */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #38bdf8; /* sky-400 */
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155; /* slate-700 */
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden">
+
+
+
+    <!-- Zaman Çizelgesi Slider (Üst Bar - Dashboard Uyumu) -->
+    <div class="bg-slate-900 border-b border-slate-800 px-6 py-4 z-20 flex items-center justify-between gap-6 shadow-md w-full">
+        
+        <button id="play-btn" class="flex items-center justify-center border-2 border-sky-400 text-sky-400 rounded-full w-12 h-12 text-xl hover:bg-sky-400 hover:text-white transition-all shadow-[0_0_15px_rgba(56,189,248,0.3)] flex-shrink-0">
+            ▶
+        </button>
+        
+        <div class="flex flex-col min-w-[150px]">
+            <div class="flex items-center gap-2">
+                <span id="current-date-display" class="text-xl font-bold text-white tracking-wide">Ocak 2025</span>
+                <span class="text-[10px] border border-rose-500 text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded font-bold">AI TAHMİNİ</span>
+            </div>
+            <div id="top-twsa-display" class="text-sm font-bold text-sky-400 mt-1">TWSA: Bekleniyor</div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <select id="date-select" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-400 transition-colors shadow-inner">
+                <!-- JS tarafından doldurulacak -->
+            </select>
+        </div>
+
+        <div class="flex-1 px-4 mt-1">
+            <input type="range" id="time-slider" min="0" max="11" value="0" class="w-full">
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 relative">
+        <!-- Harita Alanı -->
+        <div id="map" class="absolute inset-0"></div>
+
+        <!-- Görüntüleme Modu (Sol Üst) -->
+        <div class="absolute top-4 left-4 z-[1000] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-xl w-64">
+            <h4 class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">Görüntüleme Modu</h4>
+            <select id="view-mode" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-teal-500 w-full transition-colors cursor-pointer">
+                <option value="hybrid">🌐 Hibrit (Tümü)</option>
+                <option value="turkey">🇹🇷 Sadece Türkiye</option>
+                <option value="basin">💧 Sadece Havzalar</option>
+            </select>
+        </div>
+
+        <!-- Hover Bilgi Kutusu (Sağ Üst) -->
+        <div class="absolute top-4 right-4 info-box w-72 transition-opacity duration-300 opacity-0" id="info-panel">
+            <h3 id="info-region" class="text-lg font-bold text-white mb-2 pb-2 border-b border-slate-700">Bölge Adı</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-sm">Tarih</span>
+                    <span id="info-date" class="font-medium text-slate-200">Ocak 2025</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-sm">TWSA Değeri</span>
+                    <span id="info-value" class="font-mono font-bold text-xl">0.00</span>
+                </div>
+                <div class="flex justify-between items-center pt-1">
+                    <span class="text-slate-400 text-sm">Durum</span>
+                    <span id="info-status" class="px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-800">Nötr</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lejand (Sağ Alt) -->
+        <div class="absolute bottom-6 right-6 legend z-[1000]">
+            <div class="text-xs font-bold text-slate-200 mb-1 tracking-wide">Nemli (+TWSA)</div>
+            <div class="gradient-bar">
+                <div class="gradient-tick tick-top">20</div>
+                <div class="gradient-tick tick-bottom">-20</div>
+            </div>
+            <div class="text-xs font-bold text-slate-200 mt-1 tracking-wide">Kurak (-TWSA)</div>
+        </div>
+
+        <!-- Eski Alt Slider Alanı (Üste Taşındı) -->
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="map_data.js"></script>
+    <script src="real_geojsons.js"></script>
+    
+    <script>
+        // ==============================================================================
+        // 1. GERÇEK VERİ SETİ (map_data.js içerisinden yükleniyor)
+        // 2002 ile 2030 arası tüm geçmiş ve tahmin verileri
+        // ==============================================================================
+        const twsaData = typeof mapTwsaData !== 'undefined' ? mapTwsaData : {};
+        const dates = Object.keys(twsaData).sort();
+        
+        function formatMonth(dateStr) {
+            const [year, month] = dateStr.split('-');
+            const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            return `${months[parseInt(month)-1]} ${year}`;
+        }
+
+        // ==============================================================================
+        // 2. RENK VE DURUM MANTIĞI
+        // Kurak: Kırmızı/Turuncu | Nötr: Gri/Açık | Nemli: Mavi
+        // ==============================================================================
+        function getColor(val) {
+            if (val <= -20.0) return '#991b1b'; // Aşırı Kurak (Koyu Kırmızı)
+            if (val <= -10.0) return '#dc2626'; // Şiddetli Kurak (Kırmızı)
+            if (val <= -5.0)  return '#f97316'; // Kurak (Turuncu)
+            if (val <= 5.0)   return '#f1f5f9'; // Nötr (Açık Gri)
+            if (val <= 10.0)  return '#38bdf8'; // Nemli (Açık Mavi)
+            if (val <= 20.0)  return '#0284c7'; // Şiddetli Nemli (Mavi)
+            return '#075985'; // Aşırı Nemli (Koyu Mavi)
+        }
+
+        function getStatus(val) {
+            if (val <= -20.0) return { text: 'Aşırı Kurak', color: 'text-red-500' };
+            if (val <= -10.0) return { text: 'Şiddetli Kurak', color: 'text-red-400' };
+            if (val <= -5.0)  return { text: 'Kurak', color: 'text-orange-400' };
+            if (val <= 5.0)   return { text: 'Normal / Nötr', color: 'text-slate-300' };
+            if (val <= 10.0)  return { text: 'Nemli', color: 'text-sky-300' };
+            if (val <= 20.0)  return { text: 'Şiddetli Nemli', color: 'text-sky-400' };
+            return { text: 'Aşırı Nemli', color: 'text-sky-500' };
+        }
+
+        // ==============================================================================
+        // 3. GEOJSON POLİGONLARI
+        // real_geojsons.js dosyasından turkeyGeo, firatGeo, konyaGeo, kizilirmakGeo 
+        // isimli değişkenlerle otomatik olarak yüklenmektedir.
+        // ==============================================================================
+
+        // ==============================================================================
+        // 4. HARİTA BAŞLATMA VE KATMANLARI EKLEME
+        // ==============================================================================
+        const map = L.map('map', {
+            center: [39.0, 35.0], // Türkiye Merkezi
+            zoom: 6,
+            minZoom: 5,
+            maxZoom: 10
+        });
+
+        // Çakışmayı önlemek ve Türkiye'nin havzaları örtmesini engellemek için pane oluşturuyoruz
+        map.createPane('turkeyPane');
+        map.getPane('turkeyPane').style.zIndex = 400; // Harita altlığının hemen üstü
+        
+        map.createPane('basinPane');
+        map.getPane('basinPane').style.zIndex = 410; // Havzalar Türkiye geneli poligonunun üstünde
+
+        // Karanlık / Modern akademik harita altlığı (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+
+        let currentDateIndex = 0;
+        let geojsonLayers = {};
+
+        // Poligonların Genel Stili
+        function styleBase(feature) {
+            return {
+                weight: 2,
+                opacity: 1,
+                color: '#1e293b', // Poligon sınır çizgisi rengi
+                dashArray: '4', // Kesik çizgili sınırlar
+                fillOpacity: 0.8
+            };
+        }
+
+        // Fare ile Üzerine Gelindiğinde (Hover)
+        function highlightFeature(e) {
+            const layer = e.target;
+            layer.setStyle({
+                weight: 4,
+                color: '#2dd4bf', // Teal vurgu rengi
+                dashArray: '',
+                fillOpacity: 0.95
+            });
+
+            // Pane kullandığımız için artık bringToFront()'a gerek yok.
+            // Havzalar her zaman basinPane içinde Türkiye'nin üstünde kalacak.
+
+            // Info Paneli Güncelleme
+            const props = layer.feature.properties;
+            const currentData = twsaData[dates[currentDateIndex]];
+            const val = currentData[props.id] !== undefined ? currentData[props.id] : 0;
+            
+            const viewMode = document.getElementById('view-mode') ? document.getElementById('view-mode').value : 'hybrid';
+            const isLocked = (viewMode === 'basin' && props.id === 'turkiye_geneli');
+            
+            const status = isLocked ? {text: 'Nötr / Kilitli', color: 'text-slate-400'} : getStatus(val);
+            const displayVal = isLocked ? '-' : (val > 0 ? "+" + val.toFixed(2) : val.toFixed(2));
+
+            document.getElementById('info-region').textContent = props.name;
+            document.getElementById('info-value').textContent = displayVal;
+            
+            const statusEl = document.getElementById('info-status');
+            statusEl.textContent = status.text;
+            statusEl.className = `px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-800 border border-slate-700 ${status.color}`;
+            
+            document.getElementById('info-panel').classList.remove('opacity-0');
+        }
+
+        // Fare Ayrıldığında (Mouseout)
+        function resetHighlight(e) {
+            const layer = e.target;
+            const regionId = layer.feature.properties.id;
+            
+            layer.setStyle({
+                weight: 2,
+                color: '#1e293b',
+                dashArray: '4',
+                fillOpacity: 0.8
+            });
+
+            // Pane kullandığımız için bringToBack()'e gerek kalmadı.
+            
+            document.getElementById('info-panel').classList.add('opacity-0');
+        }
+
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                click: function(e) {
+                    const props = layer.feature.properties;
+                    const currentData = twsaData[dates[currentDateIndex]];
+                    const val = currentData[props.id] !== undefined ? currentData[props.id] : 0;
+                    const status = getStatus(val);
+                    
+                    const popupContent = `
+                        <div class="text-slate-800 font-inter p-1 text-center min-w-[140px]">
+                            <strong class="text-[14px] block border-b border-slate-200 pb-2 mb-2 text-slate-900">${props.name}</strong>
+                            <div class="text-sm mb-1">
+                                <span class="text-slate-500">TWSA Değeri:</span> 
+                                <span class="font-bold text-slate-800 ml-1">${val > 0 ? "+" + val.toFixed(2) : val.toFixed(2)}</span>
+                            </div>
+                            <div class="text-xs font-bold uppercase tracking-wider mt-2 py-1 bg-slate-100 rounded-md ${status.color.replace('text-sky', 'text-blue').replace('text-slate-300', 'text-slate-500')}">
+                                ${status.text}
+                            </div>
+                        </div>
+                    `;
+                    layer.bindPopup(popupContent, {className: 'custom-popup'}).openPopup(e.latlng);
+                }
+            });
+
+            // Sadece Havzalar için Kalıcı İsim Etiketi (Türkiye Geneli hariç)
+            if (feature.properties.id !== 'turkiye_geneli') {
+                layer.bindTooltip(feature.properties.name, {
+                    permanent: true, 
+                    direction: 'center',
+                    className: 'basin-label'
+                });
+            }
+        }
+
+        geojsonLayers['turkiye_geneli'] = L.geoJSON(turkeyGeo, { pane: 'turkeyPane', style: styleBase, onEachFeature }).addTo(map);
+        geojsonLayers['firat_dicle'] = L.geoJSON(firatGeo, { pane: 'basinPane', style: styleBase, onEachFeature }).addTo(map);
+        geojsonLayers['konya_kapali'] = L.geoJSON(konyaGeo, { pane: 'basinPane', style: styleBase, onEachFeature }).addTo(map);
+        geojsonLayers['kizilirmak'] = L.geoJSON(kizilirmakGeo, { pane: 'basinPane', style: styleBase, onEachFeature }).addTo(map);
+
+        // ==============================================================================
+        // 5. GÜNCELLEME MANTIĞI VE ZAMAN ÇİZELGESİ (SLIDER)
+        // ==============================================================================
+        function updateMap() {
+            const dateKey = dates[currentDateIndex];
+            const currentData = twsaData[dateKey];
+
+            // Başlıkları güncelle
+            document.getElementById('current-date-display').textContent = formatMonth(dateKey);
+            document.getElementById('info-date').textContent = formatMonth(dateKey);
+            
+            const trValue = currentData['turkiye_geneli'] !== undefined ? currentData['turkiye_geneli'] : 0;
+            document.getElementById('top-twsa-display').textContent = `TWSA: ${trValue > 0 ? '+' : ''}${trValue.toFixed(2)} cm`;
+
+            let viewMode = document.getElementById('view-mode') ? document.getElementById('view-mode').value : 'hybrid';
+
+            // Tüm poligonların rengini dinamik olarak değiştir ve açık popupları güncelle
+            Object.keys(geojsonLayers).forEach(regionId => {
+                const layerGroup = geojsonLayers[regionId];
+                const dataVal = currentData[regionId] !== undefined ? currentData[regionId] : 0;
+                
+                // 1. Görünürlük Kontrolü (Sadece Türkiye modu)
+                if (viewMode === 'turkey' && regionId !== 'turkiye_geneli') {
+                    if (map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
+                    return; // Stilleme veya popup güncellemesi yapma
+                } else {
+                    if (!map.hasLayer(layerGroup)) map.addLayer(layerGroup);
+                }
+
+                // 2. Renk ve Değer Kontrolü
+                let val = dataVal;
+                let isLocked = false;
+                
+                if (viewMode === 'basin' && regionId === 'turkiye_geneli') {
+                    // Türkiye poligonunu nötr renkte sabitle
+                    layerGroup.setStyle({ fillColor: '#1e293b', fillOpacity: 0.3, color: '#334155', weight: 1 });
+                    isLocked = true;
+                } else {
+                    layerGroup.setStyle({ fillColor: getColor(val), fillOpacity: 0.8, color: '#1e293b', weight: 2 });
+                }
+
+                // 3. Popup Güncelleme
+                layerGroup.eachLayer(function (layer) {
+                    if (layer.isPopupOpen()) {
+                        const props = layer.feature.properties;
+                        const status = isLocked ? {text: 'Nötr / Kilitli', color: 'text-slate-400'} : getStatus(val);
+                        const displayVal = isLocked ? '-' : (val > 0 ? "+" + val.toFixed(2) : val.toFixed(2));
+                        
+                        const popupContent = `
+                            <div class="text-slate-800 font-inter p-1 text-center min-w-[140px]">
+                                <strong class="text-[14px] block border-b border-slate-200 pb-2 mb-2 text-slate-900">${props.name}</strong>
+                                <div class="text-sm mb-1">
+                                    <span class="text-slate-500">TWSA Değeri:</span> 
+                                    <span class="font-bold text-slate-800 ml-1">${displayVal}</span>
+                                </div>
+                                <div class="text-xs font-bold uppercase tracking-wider mt-2 py-1 bg-slate-100 rounded-md ${status.color.replace('text-sky', 'text-blue').replace('text-slate-300', 'text-slate-500')}">
+                                    ${status.text}
+                                </div>
+                            </div>
+                        `;
+                        layer.setPopupContent(popupContent);
+                    }
+                });
+            });
+
+            // UI elemanlarını senkronize et
+            slider.value = currentDateIndex;
+            document.getElementById('date-select').value = dateKey;
+        }
+
+        // Slider Konfigürasyonu
+        const slider = document.getElementById('time-slider');
+        slider.max = dates.length - 1;
+
+
+        // Dropdown Konfigürasyonu
+        const select = document.getElementById('date-select');
+        dates.forEach((dateKey) => {
+            const option = document.createElement('option');
+            option.value = dateKey;
+            option.textContent = formatMonth(dateKey);
+            select.appendChild(option);
+        });
+
+        // Event Listeners (Olay Dinleyicileri)
+        slider.addEventListener('input', function(e) {
+            currentDateIndex = parseInt(e.target.value);
+            updateMap();
+        });
+
+        select.addEventListener('change', function(e) {
+            currentDateIndex = dates.indexOf(e.target.value);
+            updateMap();
+        });
+
+        // Play / Pause Animasyon Mantığı
+        let isPlaying = false;
+        let playInterval;
+        const playBtn = document.getElementById('play-btn');
+
+        function togglePlay() {
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playBtn.innerHTML = '▶';
+                playBtn.classList.remove('border-rose-500', 'text-rose-500', 'hover:bg-rose-500', 'shadow-[0_0_15px_rgba(244,63,94,0.3)]');
+                playBtn.classList.add('border-sky-400', 'text-sky-400', 'hover:bg-sky-400', 'shadow-[0_0_15px_rgba(56,189,248,0.3)]');
+            } else {
+                if (currentDateIndex === dates.length - 1) {
+                    currentDateIndex = 0; // Başa sar
+                }
+                playInterval = setInterval(() => {
+                    currentDateIndex++;
+                    if (currentDateIndex >= dates.length) {
+                        togglePlay(); // Sona gelince durdur
+                        currentDateIndex = dates.length - 1;
+                    } else {
+                        updateMap();
+                    }
+                }, 200); // Animasyon hızı (200ms)
+                playBtn.innerHTML = '⏸';
+                playBtn.classList.remove('border-sky-400', 'text-sky-400', 'hover:bg-sky-400', 'shadow-[0_0_15px_rgba(56,189,248,0.3)]');
+                playBtn.classList.add('border-rose-500', 'text-rose-500', 'hover:bg-rose-500', 'shadow-[0_0_15px_rgba(244,63,94,0.3)]');
+            }
+            isPlaying = !isPlaying;
+        }
+
+        playBtn.addEventListener('click', togglePlay);
+
+        document.getElementById('view-mode').addEventListener('change', function() {
+            updateMap();
+        });
+
+        // ==============================================================================
+        // 6. LEJAND (RENK SKALASI) MANTIĞI HTML'E TAŞINDI
+        // ==============================================================================
+
+        // Sayfa açıldığında haritayı ilk aya göre boya
+        updateMap();
+    </script>
+</body>
+</html>

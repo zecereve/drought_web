@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TWSA Kuraklık Projeksiyonu - Karar Destek Sistemi</title>
+    
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+    
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+   <style>
+        body { margin: 0; padding: 0; background-color: #0b0c10; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; overflow-y: auto; color: white; scroll-behavior: smooth;}
+        
+        /* =========================================
+           KATMAN 1: HARİTA BÖLÜMÜ
+           ========================================= */
+        #map-wrapper { position: relative; width: 100vw; height: 100vh; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+        .main-title { position: absolute; top: 30px; width: 100%; text-align: center; z-index: 10; font-size: 26px; letter-spacing: 5px; font-weight: 400; text-transform: uppercase; text-shadow: 0px 0px 10px rgba(255, 255, 255, 0.6); pointer-events: none; color: #e0e0e0; }
+
+        .main-marker { width: 24px; height: 24px; background-color: transparent; border-radius: 50%; cursor: pointer; position: relative; }
+        .main-marker::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; background-color: white; border-radius: 50%; animation: mainPulse 2s infinite; }
+        @keyframes mainPulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); } 70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } }
+        
+        .marker-tr { border: 2px solid #00BFFF; } .marker-tr::after { background-color: #00BFFF; }
+        .marker-hz { border: 2px solid #FFA500; } .marker-hz::after { background-color: #FFA500; }
+        
+        .main-marker-label { position: absolute; top: -35px; left: 50%; transform: translateX(-50%); width: max-content; border-bottom: 1px solid rgba(255,255,255,0.7); padding-bottom: 5px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0px 0px 5px black; background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 4px; text-align: center; }
+
+        .node-marker { width: 18px; height: 18px; background-color: rgba(20,20,20,0.8); border: 2px solid #FFA500; border-radius: 50%; cursor: pointer; position: relative; opacity: 0; transition: opacity 0.5s, transform 0.3s; z-index: 5;}
+        .node-marker:hover { transform: scale(1.3); background-color: #FFA500; }
+        .node-label { position: absolute; top: -5px; left: 25px; width: max-content; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #ddd; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 3px; border-left: 2px solid #FFA500; }
+
+        .content-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 65%; max-width: 900px; max-height: 85vh; overflow-y: auto; background: rgba(15, 15, 20, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-top: 3px solid #FFA500; padding: 30px; box-sizing: border-box; box-shadow: 0 20px 50px rgba(0,0,0,0.7); display: none; z-index: 20; color: #ddd; opacity: 0; transition: opacity 0.5s; }
+        .content-panel::-webkit-scrollbar { width: 5px; } .content-panel::-webkit-scrollbar-thumb { background: rgba(255,165,0,0.5); border-radius: 10px; }
+        .panel-close { position: absolute; top: 15px; right: 20px; cursor: pointer; color: #888; font-size: 20px; transition: 0.3s; }
+        .panel-close:hover { color: white; }
+        .content-panel h2 { margin-top: 0; color: white; font-weight: 300; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;}
+
+        .echarts-container { width: 100%; height: 350px; margin-top: 15px; }
+        .play-btn { background: rgba(0, 191, 255, 0.1); border: 1px solid #00BFFF; color: #00BFFF; padding: 6px 15px; border-radius: 4px; cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;}
+        .play-btn:hover { background: #00BFFF; color: white; }
+
+        #reset-view-btn { position: absolute; top: 30px; left: 30px; z-index: 10; background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 10px 20px; letter-spacing: 2px; cursor: pointer; display: none; transition: 0.3s; text-transform: uppercase; font-size: 12px; border-radius: 4px;}
+        #reset-view-btn:hover { background: rgba(255,165,0,0.2); border-color: #FFA500; color: #FFA500; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 15; display: none; opacity: 0; transition: opacity 0.5s; backdrop-filter: blur(2px);}
+
+        /* 🚰 SU AYAK İZİ WIDGETI */
+        #footprint-widget { position: absolute; top: 130px; right: 20px; width: 280px; background: rgba(15, 15, 20, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-left: 3px solid #FFA500; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 100; display: none; opacity: 0; transition: opacity 0.5s; }
+        #footprint-widget.show { display: block; opacity: 1; }
+        #footprint-widget h2 { margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; color: #FFA500; font-weight: 300; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        .footprint-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; margin-bottom: 8px; border-left: 3px solid #00BFFF; }
+        select { background: #222; color: white; border: 1px solid #555; padding: 8px; font-size: 14px; outline: none; }
+        
+        #footprint-open-btn { position: absolute; top: 80px; right: 20px; width: 40px; height: 40px; background: rgba(0,0,0,0.8); border: 1px solid #FFA500; color: #FFA500; border-radius: 50%; cursor: pointer; z-index: 99; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); transition: 0.3s; }
+        #footprint-open-btn:hover { background: #FFA500; color: white; transform: scale(1.1);}
+
+        /* 🚰 KONUŞMA BALONU (TOOLTIP) */
+        #footprint-tooltip { position: absolute; top: 85px; right: 70px; background: rgba(15, 15, 20, 0.9); border: 1px solid #FFA500; color: #ddd; padding: 8px 15px; border-radius: 15px 0 15px 15px; font-size: 12px; letter-spacing: 1px; box-shadow: 0 5px 15px rgba(255, 165, 0, 0.3); pointer-events: none; z-index: 98; opacity: 1; transition: opacity 0.5s; animation: floatTooltip 2.5s infinite ease-in-out; white-space: nowrap; }
+        #footprint-tooltip b { color: #FFA500; font-weight: bold; }
+        @keyframes floatTooltip { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+
+        .scroll-down-btn { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(15, 15, 20, 0.9); border: 1px solid #00BFFF; color: #00BFFF; padding: 12px 25px; border-radius: 30px; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; z-index: 30; opacity: 0.6; transition: 0.3s; box-shadow: 0 0 15px rgba(0,191,255,0.2); display: flex; align-items: center; gap: 10px; }
+        .scroll-down-btn:hover { opacity: 1; background: #00BFFF; color: white; box-shadow: 0 0 25px rgba(0,191,255,0.6); }
+
+        /* =========================================
+           KATMAN 2: DASHBOARD (GRAFİK SİMÜLASYON)
+           ========================================= */
+        #dashboard-section { width: 100vw; min-height: 100vh; background: linear-gradient(to bottom, #0b0c10, #14161c); padding: 50px; box-sizing: border-box; border-top: 2px solid #00BFFF; display: flex; flex-direction: column; position: relative; }
+        .dash-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 30px;}
+        .dash-header h2 { margin: 0; color: white; font-weight: 300; letter-spacing: 2px; text-transform: uppercase;}
+        
+        #dash-timeline-bar { display: flex; align-items: center; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);}
+        #dash-play-btn { background: transparent; border: 2px solid #00BFFF; color: #00BFFF; width: 50px; height: 50px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 30px; transition: 0.3s; }
+        #dash-play-btn:hover { background: #00BFFF; color: white; transform: scale(1.1); }
+        
+        #dash-info { display: flex; flex-direction: column; width: 180px; margin-right: 30px; }
+        #dash-date { font-size: 22px; font-weight: bold; color: white; letter-spacing: 2px; display: flex; align-items: center; gap: 10px;}
+        #dash-twsa { font-size: 14px; font-weight: bold; color: #00BFFF; margin-top: 5px;}
+        
+        .badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; letter-spacing: 1px; font-weight: bold; }
+        .badge-grace { border: 1px solid #00BFFF; color: #00BFFF; background: rgba(0,191,255,0.1); }
+        .badge-ai { border: 1px solid #ff4444; color: #ff4444; background: rgba(255,68,68,0.1); animation: blink 1.5s infinite;}
+        @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
+
+        #dash-slider { flex-grow: 1; cursor: pointer; -webkit-appearance: none; background: transparent; }
+        #dash-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%; background: #00BFFF; cursor: pointer; margin-top: -10px; box-shadow: 0 0 15px rgba(0,191,255,0.6); transition: 0.2s;}
+        #dash-slider::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        #dash-chart-container { width: 100%; flex-grow: 1; min-height: 50vh; margin-top: 30px; }
+        .scroll-up-btn { background: transparent; border: 1px solid rgba(255,255,255,0.5); color: #aaa; padding: 8px 20px; border-radius: 4px; cursor: pointer; transition: 0.3s; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;}
+        .scroll-up-btn:hover { border-color: white; color: white; background: rgba(255,255,255,0.1);}
+
+        /* =========================================
+           KATMAN 3: BİLİMSEL RAPOR SAYFASI
+           ========================================= */
+        #report-section { width: 100vw; min-height: 100vh; background: #0b0c10; padding: 50px; box-sizing: border-box; border-top: 2px solid #FFA500; display: flex; flex-direction: column; position: relative; }
+        .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 30px; }
+        .report-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 8px; border-top: 3px solid #555; transition: 0.3s; }
+        .report-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.05); }
+        .report-card h3 { color: white; margin-top: 0; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .report-card p { color: #aaa; font-size: 14px; line-height: 1.6; text-align: justify; }
+        .card-grace { border-top-color: #00BFFF; } .card-ai { border-top-color: #ff4444; } .card-drought { border-top-color: #FFA500; }
+    </style>
+</head>
+<body>
+
+    <div id="map-wrapper">
+        <div class="main-title" id="title">Karasal Su Depolama (TWSA) Kuraklık Projeksiyonu</div>
+        <div id="map"></div>
+        <div id="overlay"></div>
+        <button id="reset-view-btn">⮌ Genel Görünüme Dön</button>
+
+        <div id="footprint-tooltip">TWSA'ya bireysel <b>etkini</b> görmek ister misin?</div>
+        <button id="footprint-open-btn" onclick="toggleFootprintWidget()">🚰</button>
+        
+        <div id="footprint-widget">
+            <h2>Bireysel Su Ayak İzi<span class="panel-close" style="font-size:16px;" onclick="toggleFootprintWidget()">✖</span></h2>
+            <p style="font-size:12px; color:#aaa; margin-top:0;">Günlük alışkanlıkların su rezervlerine etkisini görün.</p>
+            <div class="footprint-item"><span>🪥 Diş Fırçalama</span><select id="teeth-select" style="font-size:12px;" onchange="calculateFootprint()"><option value="0">Daima Kapatırım</option><option value="2">Bazen Unuturum</option><option value="6">Hep Açık</option></select></div>
+            <div class="footprint-item"><span>👕 Bulaşık Makinesi</span><select id="machine-select" style="font-size:12px;" onchange="calculateFootprint()"><option value="0">Tam Dolu</option><option value="3">Yarım Dolu</option></select></div>
+            <div class="footprint-item"><span>🚿 Duş Süresi</span><select id="shower-select" style="font-size:12px;" onchange="calculateFootprint()"><option value="0">5 Dakika</option><option value="4">10 Dakika</option><option value="8">15+ Dakika</option></select></div>
+            <div style="text-align: right; margin-top: 20px; font-size:13px; color:#aaa;">Alışkanlıklarınız Havzanın Ömründen</div>
+            <div style="text-align: right; font-size: 28px; font-weight: bold; color: #ff4444;" id="footprint-penalty">0 Gün</div>
+            <div style="text-align: right; font-size:13px; color:#aaa;">Çaldı.</div>
+        </div>
+
+        <button class="scroll-down-btn" onclick="scrollToSection('dashboard-section')">⇩ Detaylı Simülasyon</button>
+
+        <div id="panel-general-twsa" class="content-panel" style="border-top-color: #00BFFF;">
+            <span class="panel-close" onclick="closePanels()">✖</span>
+            <h2>Türkiye Geneli TWSA <button class="play-btn" onclick="playPanelAnimation('general-echarts-container')">▶ Grafiği Oynat</button></h2>
+            <div id="general-echarts-container" class="echarts-container"></div>
+        </div>
+        <div id="panel-twsa" class="content-panel">
+            <span class="panel-close" onclick="closePanels()">✖</span>
+            <h2><span id="basin-title">Havza Analizi</span> <button class="play-btn" onclick="playPanelAnimation('echarts-container')">▶ Grafiği Oynat</button></h2>
+            <div id="echarts-container" class="echarts-container"></div>
+        </div>
+        
+        <div id="panel-scenario" class="content-panel">
+            <span class="panel-close" onclick="closePanels()">✖</span><h2 id="scenario-title">Özel Analiz</h2>
+            <div id="scenario-chart-container" class="echarts-container" style="height: 300px; margin-top:0;"></div>
+            <p id="scenario-desc" style="color: #aaa; font-size: 14px; margin-top: 15px; border-left: 3px solid #FFA500; padding-left: 10px;"></p>
+        </div>
+        
+        <div id="panel-visual" class="content-panel">
+            <span class="panel-close" onclick="closePanels()">✖</span><h2 id="visual-title">Görsel Panel</h2>
+            <div id="visual-chart-container" class="echarts-container" style="height: 300px; margin-top:0;"></div>
+            <p id="visual-desc" style="color: #aaa; font-size: 14px; margin-top: 15px; border-left: 3px solid #FFA500; padding-left: 10px;"></p>
+        </div>
+    </div>
+
+    <div id="dashboard-section">
+        <div class="dash-header">
+            <h2>Yapay Zeka Zaman Çizelgesi ve Simülasyonu</h2>
+            <button class="scroll-up-btn" onclick="scrollToSection('map-wrapper')">⮝ Haritaya Dön</button>
+        </div>
+        <div id="dash-timeline-bar">
+            <button id="dash-play-btn" onclick="toggleDashAnimation()">▶</button>
+            <div id="dash-info">
+                <div id="dash-date">2002-01 <span class="badge badge-grace">GRACE</span></div>
+                <div id="dash-twsa">TWSA: Bekleniyor</div>
+            </div>
+            <input type="range" id="dash-slider" min="0" max="100" value="0" step="1">
+        </div>
+        <div id="dash-chart-container"></div>
+        <button class="scroll-down-btn" style="bottom: 20px; border-color: #FFA500; color: #FFA500;" onclick="scrollToSection('report-section')">⇩ Bilimsel Rapor</button>
+    </div>
+
+   <div id="report-section">
+        <div class="dash-header">
+            <h2>Dönemsel Analiz ve Akademik Rapor</h2>
+            <button class="scroll-up-btn" onclick="scrollToSection('dashboard-section')">⮝ Dashboard'a Dön</button>
+        </div>
+        <div class="report-grid">
+            <div class="report-card card-grace">
+                <h3 style="color:#00BFFF;">GRACE Uydusu (2002-2025)</h3>
+                <p>Gravity Recovery and Climate Experiment (GRACE) ikiz uyduları, yeryüzündeki kütleçekim anormalliklerini ölçerek Karasal Su Depolama (TWSA) verilerini elde etmiştir. Bu veriler, yeraltı suyu, kar, buz ve yüzey sularındaki toplam değişimi santimetre bazında cm eşdeğer su yüksekliği (EWH) olarak bize sunar.</p>
+                <p>Türkiye'nin su geçmişine bakıldığında 2008 ve 2021 yıllarında şiddetli kuraklık periyotları tespit edilmiş ve yeraltı su seviyelerinde kritik eşikler aşılmıştır.</p>
+            </div>
+            <div class="report-card card-ai">
+                <h3 style="color:#ff4444;">LSTM-GRU Hibrit Model (2026-2030)</h3>
+                <p>Geçmiş 23 yıllık uydu verisi, Long Short-Term Memory (LSTM) ve Gated Recurrent Unit (GRU) yapay zeka mimarileriyle eğitilerek gelecek 5 yılın projeksiyonu çizilmiştir.</p>
+                <p>Derin öğrenme modelleri, trend analizlerinde yeraltı sularının kendini yenileme kapasitesinin (Recharge Rate) azaldığını ve antropojenik tüketimin artış ivmesini matematiksel olarak doğrulamaktadır.</p>
+            </div>
+            <div class="report-card card-drought">
+                <h3 style="color:#FFA500;">Bölgesel Su Stresi ve Çözüm</h3>
+                <p>Haritadan elde edilen veriler ışığında, özellikle Konya Kapalı ve Büyük Menderes havzalarında su çekilmesine bağlı jeodezik deformasyon (çökme ve obruk) riskleri maksimum seviyeye ulaşmıştır.</p>
+                <p>Acil eylem planı olarak; havza bazında vahşi sulamadan vazgeçilmesi ve ürün deseninin su isteği daha düşük endemik türlere kaydırılması sistemin çöküşünü geciktirecek yegane faktördür.</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 50px; padding: 30px; background: rgba(0, 191, 255, 0.05); border: 1px dashed #00BFFF; border-radius: 10px;">
+            <h3 style="color: #00BFFF; margin-top: 0; font-size: 20px;">Kendi Modelini Test Et (Dinamik Veri Entegrasyonu)</h3>
+            <p style="color: #aaa; font-size: 14px; line-height: 1.6;">Eğittiğiniz yeni LSTM-GRU modelinin sonuçlarını (.csv uzantılı) sisteme yükleyin. Karar Destek Sistemi anında bu yeni kütleçekim ve TWSA verilerini okuyarak <b>harita renklerini, zaman çizelgesini ve projeksiyon grafiklerini</b> yeni modelinize göre simüle edecektir.</p>
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <input type="file" id="custom-data-upload" accept=".csv" style="color: white; background: #222; padding: 10px; border-radius: 5px; border: 1px solid #555; cursor: pointer; flex-grow: 1;">
+                <button onclick="processUploadedData()" style="background: #00BFFF; color: white; border: none; padding: 10px 30px; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Veriyi Sisteme Yükle</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1Ijoib2d1em96YWxwIiwiYSI6ImNtbXhpY3h6NDMwN2wycnMya3picHV0OW4ifQ.dQ0unoi08Pl-nsh_XLRcWQ';
+
+        const map = new mapboxgl.Map({
+            container: 'map', style: 'mapbox://styles/mapbox/satellite-v9', projection: 'globe',
+            zoom: 5.0, center: [35.0, 39.0], pitch: 0, bearing: 0, interactive: false
+        });
+
+        function slowScrollTo(targetY, duration) {
+            const startY = window.scrollY;
+            const distance = targetY - startY;
+            let startTime = null;
+            function animation(currentTime) {
+                if (startTime === null) startTime = currentTime;
+                const timeElapsed = currentTime - startTime;
+                const progress = Math.min(timeElapsed / duration, 1);
+                const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                window.scrollTo(0, startY + distance * ease);
+                if (timeElapsed < duration) requestAnimationFrame(animation);
+            }
+            requestAnimationFrame(animation);
+        }
+
+        function scrollToSection(sectionId) {
+            const targetY = document.getElementById(sectionId).offsetTop;
+            slowScrollTo(targetY, 1200); 
+            if (sectionId === 'dashboard-section' && !dashEChart) initDashChart(); 
+        }
+
+        let fullDates = []; let fullHistData = []; let fullPredData = []; let mergedTWSAData = []; 
+        let bVal = 5;
+        for (let i = 2002; i <= 2030; i++) {
+            for (let j = 1; j <= 12; j++) {
+                fullDates.push(`${i}-${j < 10 ? '0'+j : j}`);
+                let sea = Math.sin(j * Math.PI / 6) * 8; let currentVal;
+                if (i < 2026) { bVal -= 0.02; currentVal = (sea + bVal + (Math.random()*2-1)).toFixed(2); fullHistData.push(currentVal); fullPredData.push('-'); 
+                } else if (i === 2026 && j === 1) { currentVal = (sea + bVal).toFixed(2); fullHistData.push(currentVal); fullPredData.push(currentVal); 
+                } else { bVal -= 0.1; currentVal = (sea + bVal + (Math.random()*2-1)).toFixed(2); fullHistData.push('-'); fullPredData.push(currentVal); }
+                mergedTWSAData.push(parseFloat(currentVal)); 
+            }
+        }
+        document.getElementById('dash-slider').max = fullDates.length - 1;
+
+        let dashEChart; let dashPlayInterval; let isDashPlaying = false;
+        const dashSlider = document.getElementById('dash-slider');
+        const dashPlayBtn = document.getElementById('dash-play-btn');
+
+        function initDashChart() {
+            dashEChart = echarts.init(document.getElementById('dash-chart-container'), 'dark');
+            dashEChart.setOption({
+                backgroundColor: 'transparent', tooltip: { trigger: 'axis' },
+                grid: { left: '2%', right: '3%', bottom: '5%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', boundaryGap: false, data: fullDates },
+                yAxis: { type: 'value', axisLabel: { formatter: '{value} cm' } },
+                series: [
+                    { name: 'GRACE Gözlem', type: 'line', smooth: true, lineStyle: { width: 2, color: '#00BFFF' }, data: fullDates.map(()=>'-'), markLine: { symbol: ['none', 'none'], label: { formatter: '2026 AI Sınırı', position: 'insideStartTop', color: '#fff' }, lineStyle: { color: 'white', type: 'dashed', width: 1 }, data: [{ xAxis: '2026-01' }] } },
+                    { name: 'AI Tahmin', type: 'line', smooth: true, lineStyle: { width: 2, color: '#ff4444', type: 'dashed' }, data: fullDates.map(()=>'-') }
+                ]
+            });
+            updateDashState(0); 
+        }
+
+        function updateDashState(index) {
+            if(!dashEChart || index >= fullDates.length) return;
+            const dateStr = fullDates[index]; 
+            const twsaVal = mergedTWSAData[index];
+            const currentYear = parseInt(dateStr.substring(0, 4));
+            
+            let badgeHtml = currentYear >= 2026 ? '<span class="badge badge-ai">AI TAHMİNİ</span>' : '<span class="badge badge-grace">GRACE UYDUSU</span>';
+            let textColor = '#00BFFF'; if (twsaVal < 0) textColor = '#FFA500'; if (twsaVal < -10) textColor = '#ff4444';
+
+            document.getElementById('dash-date').innerHTML = `${dateStr} ${badgeHtml}`;
+            const twsaDisplay = document.getElementById('dash-twsa');
+            twsaDisplay.innerText = `TWSA: ${twsaVal > 0 ? '+' : ''}${twsaVal} cm`;
+            twsaDisplay.style.color = textColor;
+
+            let slicedHist = fullHistData.map((val, i) => i <= index ? val : '-');
+            let slicedPred = fullPredData.map((val, i) => i <= index ? val : '-');
+
+            dashEChart.setOption({ series: [ { data: slicedHist }, { data: slicedPred } ] });
+
+            if (map.getLayer('havzalar-fill')) {
+                let mapColor = 'rgba(135, 206, 235, 0.4)'; 
+                if(twsaVal < 0) mapColor = 'rgba(255, 165, 0, 0.5)'; 
+                if(twsaVal < -10) mapColor = 'rgba(255, 68, 68, 0.6)'; 
+                map.setPaintProperty('havzalar-fill', 'fill-color', mapColor);
+            }
+        }
+
+        dashSlider.addEventListener('input', (e) => {
+            if (isDashPlaying) toggleDashAnimation(); 
+            updateDashState(parseInt(e.target.value));
+        });
+
+        function toggleDashAnimation() {
+            if (isDashPlaying) {
+                clearInterval(dashPlayInterval); dashPlayBtn.innerText = "▶"; isDashPlaying = false;
+            } else {
+                dashPlayBtn.innerText = "⏸"; isDashPlaying = true;
+                if (parseInt(dashSlider.value) >= fullDates.length - 1) dashSlider.value = 0; 
+                dashPlayInterval = setInterval(() => {
+                    let currentIndex = parseInt(dashSlider.value);
+                    if (currentIndex >= fullDates.length - 1) { toggleDashAnimation(); return; }
+                    currentIndex += 1; dashSlider.value = currentIndex; updateDashState(currentIndex);
+                }, 50);
+            }
+        }
+
+        map.on('style.load', () => { 
+            map.setFog({ 'color': 'rgb(186, 210, 235)', 'high-color': 'rgb(36, 92, 223)', 'space-color': 'rgb(5, 5, 15)', 'star-intensity': 0.8 }); 
+            try {
+                map.addSource('havzalar-data', { 'type': 'geojson', 'data': 'havzalar.json' });
+                map.addLayer({ 'id': 'havzalar-fill', 'type': 'fill', 'source': 'havzalar-data', 'paint': { 'fill-color': 'rgba(135, 206, 235, 0.4)', 'fill-opacity': 0.6 } });
+                map.addLayer({ 'id': 'havzalar-outline', 'type': 'line', 'source': 'havzalar-data', 'paint': { 'line-color': 'rgba(255, 255, 255, 0.5)', 'line-width': 1 } });
+            } catch (e) { console.log("JSON dosyası eklenmemiş."); }
+        });
+
+        const markersContainer = []; let nodes = []; let isGeneralViewOpen = false; let activeBasinCenter = null;
+
+        const trCoords = [33.8, 39.2]; 
+        const trEl = document.createElement('div'); trEl.className = 'main-marker marker-tr';
+        const trLabel = document.createElement('div'); trLabel.className = 'main-marker-label'; trLabel.innerText = 'Türkiye Geneli TWSA'; trEl.appendChild(trLabel);
+        new mapboxgl.Marker(trEl).setLngLat(trCoords).addTo(map); markersContainer.push(trEl);
+
+        const basins = [
+            { name: 'Konya Kapalı Havzası', coords: [35, 37.9], camera: [33.5, 38.0] },
+            { name: 'Fırat-Dicle Havzası', coords: [39.5, 38.5], camera: [39.5, 38.0] }, 
+            { name: 'Marmara Havzası', coords: [29.5, 41.2], camera: [29.0, 40.5] },
+            { name: 'Kızılırmak Havzası', coords: [38, 40.85], camera: [35.5, 39.5] }, 
+            { name: 'Büyük Menderes Havzası', coords: [29.5, 39.5], camera: [28.5, 38.0] } 
+        ];
+        const basinMenuItems = {
+            'Konya Kapalı Havzası': ['Obruk Hassasiyeti', 'Tarımsal Su Arzı', 'Jeodezik Çökme'],
+            'Fırat-Dicle Havzası': ['Hidroelektrik Enerji', 'Toplam Su Hacmi', 'Hidro-Politik Risk'],
+            'Marmara Havzası': ['Kentsel Su Stresi', 'Sanayi Su Güvenliği', 'Kıyı Tuzlanma Riski'],
+            'Kızılırmak Havzası': ['Akış Rejimi', 'Toprak Nemi Doygunluğu', 'Ekosistem Canlılığı'],
+            'Büyük Menderes Havzası': ['Tarımsal Verim Kaybı', 'Kirlilik Konsantrasyonu', 'Sulama Senaryosu']
+        };
+
+        basins.forEach(basin => {
+            const el = document.createElement('div'); el.className = 'main-marker marker-hz';
+            const label = document.createElement('div'); label.className = 'main-marker-label'; label.innerText = basin.name; el.appendChild(label);
+            new mapboxgl.Marker(el).setLngLat(basin.coords).addTo(map); markersContainer.push(el);
+
+            el.addEventListener('click', () => {
+                hideMainMarkers(); isGeneralViewOpen = false; activeBasinCenter = basin.camera; 
+                document.getElementById('basin-title').innerText = `${basin.name} (2002-2030)`;
+                map.flyTo({ center: basin.camera, zoom: 7.0, pitch: 0, speed: 1.0, essential: true });
+                setTimeout(() => { createNodes(basin.name, basin.camera); document.getElementById('reset-view-btn').style.display = 'block'; map.dragPan.enable(); }, 1200);
+            });
+        });
+
+        trEl.addEventListener('click', () => {
+            hideMainMarkers(); isGeneralViewOpen = true; activeBasinCenter = null;
+            map.flyTo({ center: trCoords, zoom: 5.5, pitch: 0, speed: 1.8, essential: true }); 
+            setTimeout(() => { openPanel('panel-general-twsa'); document.getElementById('reset-view-btn').style.display = 'block'; setTimeout(() => { initPanelECharts('general-echarts-container'); }, 100); }, 600); 
+        });
+
+        function hideMainMarkers() { markersContainer.forEach(el => el.style.display = 'none'); document.getElementById('title').style.display = 'none'; }
+
+        // ==========================================
+        // YENİ GÜNCELLENEN: ECHARTS RENDER SİSTEMİ
+        // ==========================================
+        let specCharts = {}; // Birden fazla grafik açılırsa bellekte tutmak için
+
+        function renderSpecChart(label, containerId, descId) {
+            const chartDom = document.getElementById(containerId);
+            const descDom = document.getElementById(descId);
+            
+            // Eğer önceki grafik varsa belleği temizle
+            if (specCharts[containerId]) { specCharts[containerId].dispose(); }
+            const myChart = echarts.init(chartDom, 'dark');
+            specCharts[containerId] = myChart;
+
+            let option;
+
+            if (label === 'Obruk Hassasiyeti') {
+                descDom.innerHTML = "<b>Durum Analizi:</b> Yeraltı suyu seviyesindeki düşüş (-TWSA), karstik boşluklardaki hidrostatik basıncı sıfırlayarak ani yüzey çökmelerine (obruk) maksimum zemin hazırlamaktadır.";
+                option = {
+                    backgroundColor: 'transparent',
+                    series: [{
+                        type: 'gauge', startAngle: 180, endAngle: 0, min: 0, max: 100,
+                        axisLine: { lineStyle: { width: 20, color: [[0.4, '#00BFFF'], [0.7, '#FFA500'], [1, '#ff4444']] } },
+                        pointer: { itemStyle: { color: '#fff' } },
+                        axisTick: { distance: -20, length: 8, lineStyle: { color: '#fff', width: 2 } },
+                        splitLine: { distance: -20, length: 15, lineStyle: { color: '#fff', width: 3 } },
+                        axisLabel: { color: '#ccc', distance: 25, fontSize: 12 },
+                        detail: { formatter: '{value}% Kritik', color: '#ff4444', fontSize: 22, offsetCenter: [0, '20%'] },
+                        data: [{ value: 85, name: 'Çökme Riski' }],
+                        title: { color: '#aaa', fontSize: 14, offsetCenter: [0, '-20%'] }
+                    }]
+                };
+            } 
+            else if (label === 'Tarımsal Su Arzı') {
+                descDom.innerHTML = "<b>Uyarı:</b> Mevcut ürün deseni (Mısır/Şeker Pancarı) devam ederse havzanın beslenimi, vahşi sulama talebini karşılayamamaktadır. Arz/Talep makası giderek açılmaktadır.";
+                option = {
+                    backgroundColor: 'transparent', tooltip: { trigger: 'axis' },
+                    legend: { data: ['Yıllık Beslenim (Recharge)', 'Tarımsal Su Talebi'], textStyle: { color: '#ccc' } },
+                    grid: { left: '3%', right: '4%', bottom: '5%', top: '20%', containLabel: true },
+                    xAxis: { type: 'category', data: ['2020', '2023', '2026 (Tahmin)', '2030 (Tahmin)'], axisLabel: { color: '#ccc' } },
+                    yAxis: { type: 'value', name: 'Milyon m³', axisLabel: { color: '#ccc' }, nameTextStyle: { color: '#ccc' } },
+                    series: [
+                        { name: 'Yıllık Beslenim (Recharge)', type: 'bar', data: [1200, 1100, 950, 800], itemStyle: { color: '#00BFFF' } },
+                        { name: 'Tarımsal Su Talebi', type: 'bar', data: [2500, 2800, 3200, 3600], itemStyle: { color: '#ff4444' } }
+                    ]
+                };
+            } 
+            else if (label === 'Jeodezik Çökme') {
+                descDom.innerHTML = "<b>InSAR & GNSS Verisi:</b> Aküfer (su taşıyan katman) boşaldıkça killi zemin sıkışmaktadır. Bölgede yıllık ortalama 2.5 - 3.2 cm arasında kalıcı dikey deformasyon (çökme) tespit edilmiştir.";
+                option = {
+                    backgroundColor: 'transparent', tooltip: { trigger: 'axis' },
+                    grid: { left: '3%', right: '4%', bottom: '5%', top: '15%', containLabel: true },
+                    xAxis: { type: 'category', data: ['2020', '2022', '2024', '2026', '2028', '2030'], axisLabel: { color: '#ccc' } },
+                    yAxis: { type: 'value', name: 'Çökme Miktarı (cm)', axisLabel: { color: '#ccc' }, nameTextStyle: { color: '#ccc' } },
+                    series: [{
+                        name: 'Jeodezik Çökme', type: 'line', smooth: true,
+                        data: [0, -4.5, -9.1, -15.4, -22.8, -30.5],
+                        lineStyle: { width: 3, color: '#FFA500' },
+                        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: 'rgba(255,165,0,0.5)'}, {offset: 1, color: 'rgba(255,165,0,0)'}]) },
+                        itemStyle: { color: '#FFA500' }
+                    }]
+                };
+            } 
+            else {
+                // Tanımlanmamış menüler için geçici şablon
+                descDom.innerHTML = "Bu analiz modülü için veri entegrasyonu devam etmektedir...";
+                option = {
+                    backgroundColor: 'transparent', title: { text: 'Veri Bekleniyor', left: 'center', textStyle: { color: '#555' } },
+                    xAxis: { type: 'category', data: [] }, yAxis: { type: 'value' }, series: []
+                };
+            }
+
+            myChart.setOption(option);
+            window.addEventListener('resize', () => myChart.resize());
+        }
+
+        // Tıklama olaylarını yakalayan ana fonksiyon güncellendi
+        function createNodes(basinName, centerCoords) {
+            const lng = centerCoords[0]; const lat = centerCoords[1];
+            const specItems = basinMenuItems[basinName] || [];
+            
+            const nodeData = [
+                { coords: [lng - 0.4, lat + 0.4], label: 'TWSA AI Tahmini', target: 'panel-twsa' },
+                { coords: [lng - 0.4, lat - 0.4], label: specItems[0] || 'Kritik Senaryo', target: 'panel-scenario' },
+                { coords: [lng + 0.4, lat + 0.4], label: specItems[1] || 'Tarımsal Su Arzı', target: 'panel-visual' },
+                { coords: [lng + 0.4, lat - 0.4], label: specItems[2] || 'Su Stresi', target: 'panel-visual' } 
+            ];
+
+            nodeData.forEach((data, index) => {
+                const el = document.createElement('div'); el.className = 'node-marker';
+                const label = document.createElement('div'); label.className = 'node-label'; label.innerText = data.label; el.appendChild(label);
+                const marker = new mapboxgl.Marker(el).setLngLat(data.coords).addTo(map); nodes.push(marker);
+                setTimeout(() => { el.style.opacity = '1'; }, index * 200);
+
+                el.addEventListener('click', () => {
+                    map.flyTo({ center: data.coords, zoom: 7.8, pitch: 0, speed: 0.5 });
+                    
+                    if(data.target === 'panel-scenario') {
+                        document.getElementById('scenario-title').innerText = data.label;
+                        // Panel açılırken grafiği tetikle
+                        setTimeout(() => renderSpecChart(data.label, 'scenario-chart-container', 'scenario-desc'), 200);
+                    }
+                    if(data.target === 'panel-visual') {
+                        document.getElementById('visual-title').innerText = data.label;
+                        // Panel açılırken grafiği tetikle
+                        setTimeout(() => renderSpecChart(data.label, 'visual-chart-container', 'visual-desc'), 200);
+                    }
+                    
+                    openPanel(data.target);
+                    if (data.target === 'panel-twsa') { setTimeout(() => { initPanelECharts('echarts-container'); }, 200); }
+                });
+            });
+        }
+
+        function openPanel(id) { document.getElementById('overlay').style.display = 'block'; setTimeout(() => { document.getElementById('overlay').style.opacity = '1'; }, 10); const panel = document.getElementById(id); panel.style.display = 'block'; setTimeout(() => { panel.style.opacity = '1'; }, 50); }
+        function closePanelsUIOnly() { document.getElementById('overlay').style.opacity = '0'; setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 500); document.querySelectorAll('.content-panel').forEach(p => { p.style.opacity = '0'; setTimeout(() => { p.style.display = 'none'; }, 500); }); }
+
+        function closePanels() {
+            closePanelsUIOnly();
+            if(panelPlayInterval) clearInterval(panelPlayInterval); 
+            if(isGeneralViewOpen) { map.flyTo({ center: trCoords, zoom: 5.5, pitch: 0, speed: 0.8 }); 
+            } else if(nodes.length > 0 && activeBasinCenter) { map.flyTo({ center: activeBasinCenter, zoom: 7.0, pitch: 0, speed: 0.8 }); }
+        }
+
+        document.getElementById('reset-view-btn').addEventListener('click', () => {
+            closePanelsUIOnly(); document.getElementById('reset-view-btn').style.display = 'none'; 
+            nodes.forEach(m => m.remove()); nodes = []; if(panelPlayInterval) clearInterval(panelPlayInterval); 
+            isGeneralViewOpen = false; activeBasinCenter = null;
+            const widget = document.getElementById('footprint-widget'); if(widget.classList.contains('show')) toggleFootprintWidget();
+            map.flyTo({ center: [35.0, 39.0], zoom: 5.0, pitch: 0, bearing: 0, speed: 1.5 });
+            setTimeout(() => { markersContainer.forEach(el => el.style.display = 'block'); document.getElementById('title').style.display = 'block'; map.dragPan.disable(); }, 1000);
+        });
+
+        let activePanelChart; let panelPlayInterval;
+        function getGenOption(histData, predData) { return { backgroundColor: 'transparent', tooltip: { trigger: 'axis' }, legend: { data: ['GRACE (2002-2026)', 'AI Tahmini (2026-2030)'], textStyle: { color: '#ccc' } }, grid: { left: '3%', right: '4%', bottom: '8%', top: '15%', containLabel: true }, xAxis: { type: 'category', boundaryGap: false, data: fullDates }, yAxis: { type: 'value', axisLabel: { formatter: '{value} cm' } }, series: [ { name: 'GRACE (2002-2026)', type: 'line', smooth: true, lineStyle: { width: 2, color: '#00BFFF' }, data: histData, markLine: { symbol: ['none', 'none'], label: { formatter: '2026', position: 'insideStartTop', color: '#fff' }, lineStyle: { color: 'white', type: 'dashed', width: 2 }, data: [{ xAxis: '2026-01' }] } }, { name: 'AI Tahmini (2026-2030)', type: 'line', smooth: true, lineStyle: { width: 2, color: '#ff4444', type: 'dashed' }, data: predData } ] }; }
+        function initPanelECharts(containerId) { const chartDom = document.getElementById(containerId); if (activePanelChart) { activePanelChart.dispose(); clearInterval(panelPlayInterval); } activePanelChart = echarts.init(chartDom, 'dark'); activePanelChart.setOption(getGenOption(fullHistData, fullPredData)); window.addEventListener('resize', function() { if(activePanelChart) activePanelChart.resize(); }); }
+        function playPanelAnimation(containerId) { clearInterval(panelPlayInterval); let currentHist = []; let currentPred = []; let index = 0; for(let k=0; k<fullDates.length; k++){ currentHist.push('-'); currentPred.push('-'); } activePanelChart.setOption(getGenOption(currentHist, currentPred)); panelPlayInterval = setInterval(() => { if(index >= fullDates.length) { clearInterval(panelPlayInterval); return; } if(fullDates[index] < "2026-02") { currentHist[index] = fullHistData[index]; } else { currentPred[index] = fullPredData[index]; } activePanelChart.setOption({ series: [{ data: currentHist }, { data: currentPred }] }); index += 3; }, 25); }
+
+        function toggleFootprintWidget() { const widget = document.getElementById('footprint-widget'); const openBtn = document.getElementById('footprint-open-btn'); const tooltip = document.getElementById('footprint-tooltip'); if(widget.classList.contains('show')) { widget.classList.remove('show'); openBtn.style.display = 'flex'; if(tooltip) tooltip.style.opacity = '1'; } else { if(nodes.length > 0 && activeBasinCenter) { map.flyTo({ center: activeBasinCenter, zoom: 7.0, speed: 0.5 }); } widget.classList.add('show'); openBtn.style.display = 'none'; if(tooltip) tooltip.style.opacity = '0'; } }
+        function calculateFootprint() { const teeth = parseInt(document.getElementById('teeth-select').value); const machine = parseInt(document.getElementById('machine-select').value); const shower = parseInt(document.getElementById('shower-select').value); document.getElementById('footprint-penalty').innerText = `${(teeth * 15) + (machine * 20) + (shower * 10)} Gün`; }
+
+        function processUploadedData() {
+            const fileInput = document.getElementById('custom-data-upload');
+            if (!fileInput.files.length) { Swal.fire({ icon: 'error', title: 'Hata', text: 'Lütfen bir CSV dosyası seçin!', background: '#14161c', color: '#fff' }); return; }
+            const file = fileInput.files[0]; const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result; const rawValues = text.split(/[\n,;]+/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+                if (rawValues.length < 50) { Swal.fire({ icon: 'warning', title: 'Yetersiz Veri', text: 'CSV dosyasında yeterli veri (aylık tahmin) bulunamadı.', background: '#14161c', color: '#fff' }); return; }
+                mergedTWSAData = []; fullHistData = []; fullPredData = [];
+                for (let i = 0; i < fullDates.length; i++) {
+                    let val = rawValues[i] !== undefined ? rawValues[i].toFixed(2) : (rawValues[rawValues.length-1] - (i * 0.05)).toFixed(2); mergedTWSAData.push(parseFloat(val));
+                    if (fullDates[i] < "2026-01") { fullHistData.push(val); fullPredData.push('-'); } else if (fullDates[i] === "2026-01") { fullHistData.push(val); fullPredData.push(val); } else { fullHistData.push('-'); fullPredData.push(val); }
+                }
+                if(dashEChart) initDashChart(); if(activePanelChart) initPanelECharts('echarts-container'); updateDashState(0); document.getElementById('dash-slider').value = 0; scrollToSection('dashboard-section');
+                Swal.fire({ icon: 'success', title: 'Sistem Güncellendi!', text: 'Yeni AI modeliniz Karar Destek Sistemine başarıyla entegre edildi.', background: '#14161c', color: '#fff', confirmButtonColor: '#00BFFF' });
+            }; reader.readAsText(file);
+        }
+        setTimeout(() => { const tooltip = document.getElementById('footprint-tooltip'); if (tooltip) tooltip.style.opacity = '0'; }, 4000); 
+    </script>
+</body>
+</html>
