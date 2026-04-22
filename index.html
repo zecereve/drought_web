@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TADIS | TURKİYE'S AI Drought Analysis Information System</title>
+    <title>TADIS | TURKIYE'S AI Drought AnalysIs InformatIon System</title>
 
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
@@ -1075,7 +1075,7 @@
             max-width: 90vw;
             max-height: 90vh;
             border-radius: 8px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
             transform: scale(0.9);
             transition: transform 0.3s ease;
         }
@@ -1091,7 +1091,7 @@
 
         .zoomable-image:hover {
             transform: scale(1.02);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
         }
     </style>
 </head>
@@ -1209,7 +1209,8 @@
                 <h2>İnteraktif Kuraklık İzleme Haritası</h2>
                 <button class="scroll-up-btn" onclick="scrollToSection('dashboard-section')">⮝ Simülasyona Dön</button>
             </div>
-            <p style="color:#aaa; font-size:14px; margin-top: 0; margin-bottom: 0;">Türkiye genelindeki ve kritik su havzalarındaki kuraklık değişimlerini zaman serisi üzerinden dinamik olarak izlemenize olanak tanır.</p>
+            <p style="color:#aaa; font-size:14px; margin-top: 0; margin-bottom: 0;">Türkiye genelindeki ve kritik su
+                havzalarındaki kuraklık değişimlerini zaman serisi üzerinden dinamik olarak izlemenize olanak tanır.</p>
         </div>
 
         <div style="flex-grow: 1; width: 100%;">
@@ -1347,29 +1348,50 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 40px; margin-top: 20px;">
             <!-- 2020-2025 Haritası -->
             <div class="report-card" style="border-top-color: #eab308; padding: 20px;">
-                <h3 style="color:#eab308; text-align: center; margin-bottom: 15px; margin-top: 0;">Uzun Vadeli Kuraklık Trendi</h3>
-                <img src="trend_2020_2025.jpeg" alt="2020-2025 TWSA Trend" class="zoomable-image" onclick="openLightbox(this.src)" style="width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                <h3 style="color:#eab308; text-align: center; margin-bottom: 15px; margin-top: 0;">Uzun Vadeli Kuraklık
+                    Trendi</h3>
+                <img src="trend_2020_2025.jpeg" alt="2020-2025 TWSA Trend" class="zoomable-image"
+                    onclick="openLightbox(this.src)"
+                    style="width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                 <div style="font-size: 14px; margin-top: 15px; color: #ccc; line-height: 1.6; text-align: justify;">
-                    <strong style="color: #fff; display: block; margin-bottom: 5px;">Beş Yıllık Kümülatif Su Kaybı Analizi:</strong> 
-                    Bu harita, 2020 ve 2025 yılları arasındaki toplam su depolama değişimini (TWS) göstermektedir. Haritadaki koyu kırmızı tonlar, İç Anadolu, Ege ve Güneydoğu Anadolu bölgelerinde yer altı ve yer üstü su rezervlerinde -20 cm'yi aşan ciddi bir çekilmeyi temsil etmektedir. Bu 5 yıllık süreç, Türkiye'nin önemli bir kısmında hidrolojik dengenin negatif yönde seyrettiğini ve kuraklık riskinin kronikleştiğini kanıtlamaktadır.
+                    <strong style="color: #fff; display: block; margin-bottom: 5px;">Beş Yıllık Kümülatif Su Kaybı
+                        Analizi:</strong>
+                    Bu harita, 2020 ve 2025 yılları arasındaki toplam su bütçesi değişimini (TWS) göstermektedir.
+                    Haritadaki koyu kırmızı tonlar, İç Anadolu, Ege ve Güneydoğu Anadolu bölgelerinde yer altı ve yer
+                    üstü su rezervlerinde -20 cm'yi aşan ciddi bir çekilmeyi temsil etmektedir. Bu 5 yıllık süreç,
+                    Türkiye'nin önemli bir kısmında hidrolojik dengenin negatif yönde seyrettiğini ve kuraklık riskinin
+                    kronikleştiğini kanıtlamaktadır.
                 </div>
             </div>
 
             <!-- 2025-2026 Haritası -->
             <div class="report-card" style="border-top-color: #00BFFF; padding: 20px;">
-                <h3 style="color:#00BFFF; text-align: center; margin-bottom: 15px; margin-top: 0;">Güncel Hidrolojik Durum</h3>
-                <img src="trend_2025_2026.jpeg" alt="2025-2026 TWSA Trend" class="zoomable-image" onclick="openLightbox(this.src)" style="width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                <h3 style="color:#00BFFF; text-align: center; margin-bottom: 15px; margin-top: 0;">Güncel Hidrolojik
+                    Durum</h3>
+                <img src="trend_2025_2026.jpeg" alt="2025-2026 TWSA Trend" class="zoomable-image"
+                    onclick="openLightbox(this.src)"
+                    style="width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                 <div style="font-size: 14px; margin-top: 15px; color: #ccc; line-height: 1.6; text-align: justify;">
-                    <strong style="color: #fff; display: block; margin-bottom: 5px;">Yıllık Dinamik Değişim ve Mevsimsel Trend:</strong> 
-                    2025 ile 2026 yılları arasındaki kısa vadeli farkı gösteren bu analizde, su rezervlerindeki değişimin bölgesel olarak daha heterojen bir yapı sergilediği görülmektedir. Karadeniz ve Doğu Anadolu'nun kuzey kesimlerinde (mavi tonlar) su depolamasında göreceli bir artış gözlenirken, İç Ege ve Akdeniz'in iç kesimlerinde su kaybı devam etmektedir. Bu durum, yağış rejimindeki dengesizliklerin su kaynakları üzerindeki doğrudan etkisini yansıtmaktadır.
+                    <strong style="color: #fff; display: block; margin-bottom: 5px;">Yıllık Dinamik Değişim ve Mevsimsel
+                        Trend:</strong>
+                    2025 ile 2026 yılları arasındaki kısa vadeli farkı gösteren bu analizde, su rezervlerindeki
+                    değişimin bölgesel olarak daha heterojen bir yapı sergilediği görülmektedir. Karadeniz ve Doğu
+                    Anadolu'nun kuzey kesimlerinde (mavi tonlar) su depolamasında göreceli bir artış gözlenirken, İç Ege
+                    ve Akdeniz'in iç kesimlerinde su kaybı devam etmektedir. Bu durum, yağış rejimindeki
+                    dengesizliklerin su kaynakları üzerindeki doğrudan etkisini yansıtmaktadır.
                 </div>
             </div>
         </div>
 
         <!-- Teknik Not -->
-        <div class="report-card" style="background: rgba(255,255,255,0.03); padding: 15px 20px; border-left: 4px solid #bb86fc; margin-bottom: 40px;">
-            <strong style="color: #bb86fc; font-size: 15px;">Teknik Not:</strong> <span style="color: #fff; font-size: 14px;">Veri Kaynağı: CSR Mascon RL06.03 (0.25 Derece Çözünürlük).</span><br>
-            <span style="color: #aaa; font-size: 13px; display: inline-block; margin-top: 5px;">Metrik: Toplam Su Depolama Değişimi (TWS - Total Water Storage), sadece yüzey sularını değil; yer altı suları, kar örtüsü ve toprak nemindeki toplam değişimi santimetre cinsinden ifade eder.</span>
+        <div class="report-card"
+            style="background: rgba(255,255,255,0.03); padding: 15px 20px; border-left: 4px solid #bb86fc; margin-bottom: 40px;">
+            <strong style="color: #bb86fc; font-size: 15px;">Teknik Not:</strong> <span
+                style="color: #fff; font-size: 14px;">Veri Kaynağı: CSR Mascon RL06.03 (0.25 Derece
+                Çözünürlük).</span><br>
+            <span style="color: #aaa; font-size: 13px; display: inline-block; margin-top: 5px;">Metrik: Toplam Su
+                Depolama Değişimi (TWS - Total Water Storage), sadece yüzey sularını değil; yer altı suları, kar örtüsü
+                ve toprak nemindeki toplam değişimi santimetre cinsinden ifade eder.</span>
         </div>
 
         <div class="report-grid">
